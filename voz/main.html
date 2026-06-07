@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agente de Pedidos — Voz</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #1a56db;
+      --accent-bg: #e8f0fe;
+      --bg: #ffffff;
+      --bg2: #f9fafb;
+      --bg3: #f3f4f6;
+      --text1: #111827;
+      --text2: #6b7280;
+      --text3: #9ca3af;
+      --border: rgba(0,0,0,0.10);
+      --border2: rgba(0,0,0,0.18);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111827;
+        --bg2: #1f2937;
+        --bg3: #374151;
+        --text1: #f9fafb;
+        --text2: #9ca3af;
+        --text3: #6b7280;
+        --border: rgba(255,255,255,0.10);
+        --border2: rgba(255,255,255,0.18);
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg3);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border2);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .hdr-logo {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: #4285f4;
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .hdr-title { font-size: 14px; font-weight: 600; color: var(--text1); }
+    .hdr-sub { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text3); margin-left: auto; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.on { background: #22c55e; }
+    .status-dot.blink { background: #f59e0b; animation: blink 0.8s infinite; }
+    .status-dot.err { background: #ef4444; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── Config row ── */
+    .cfg {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 18px;
+      background: var(--bg2);
+      border-bottom: 0.5px solid var(--border);
+    }
+    .cfg label {
+      font-size: 11px; color: var(--text2);
+      font-family: var(--mono); white-space: nowrap;
+    }
+    .cfg input[type="password"] {
+      flex: 1; min-width: 0;
+      font-size: 12px; font-family: var(--mono);
+      background: var(--bg); border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 7px 10px;
+      color: var(--text1); outline: none;
+      transition: border-color 0.15s;
+    }
+    .cfg input[type="password"]:focus { border-color: var(--accent); }
+    .cfg select {
+      font-size: 11px; font-family: var(--mono);
+      background: var(--bg); border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 7px 8px;
+      color: var(--text1); outline: none; cursor: pointer;
+    }
+    .btn-conn {
+      font-size: 12px; font-weight: 500;
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      border: 0.5px solid var(--border2); cursor: pointer;
+      background: var(--bg); color: var(--text1);
+      transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-conn:hover { background: var(--bg2); }
+    .btn-conn.live { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-conn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Alert ── */
+    .alert {
+      margin: 8px 18px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px; font-family: var(--mono);
+      display: none;
+    }
+    .alert.show { display: block; }
+    .alert.err { background: #fef2f2; color: #991b1b; border: 0.5px solid #fca5a5; }
+    .alert.ok { background: #f0fdf4; color: #166534; border: 0.5px solid #86efac; }
+    @media (prefers-color-scheme: dark) {
+      .alert.err { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
+      .alert.ok { background: #052e16; color: #86efac; border-color: #14532d; }
+    }
+
+    /* ── Stage ── */
+    .stage {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 30px 18px 22px;
+      gap: 22px;
+    }
+
+    /* Orb */
+    .orb-wrap { position: relative; width: 108px; height: 108px; }
+    .orb {
+      width: 108px; height: 108px; border-radius: 50%;
+      background: var(--bg2); border: 1px solid var(--border2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; color: var(--text3);
+      transition: background 0.3s, border-color 0.3s, color 0.3s;
+      position: relative; z-index: 1;
+    }
+    .orb.recording { background: #fef2f2; border-color: #fca5a5; color: #ef4444; }
+    .orb.playing   { background: #f0fdf4; border-color: #86efac; color: #22c55e; }
+    @media (prefers-color-scheme: dark) {
+      .orb.recording { background: #450a0a; border-color: #7f1d1d; color: #f87171; }
+      .orb.playing   { background: #052e16; border-color: #14532d; color: #4ade80; }
+    }
+    .orb-ring {
+      position: absolute; inset: -10px; border-radius: 50%;
+      border: 1.5px solid transparent;
+      pointer-events: none; z-index: 0;
+    }
+    .orb.recording ~ .orb-ring { border-color: #fca5a5; animation: spin 2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Orb icon via SVG to avoid external font dependency */
+    .orb svg { width: 36px; height: 36px; }
+
+    /* Status */
+    .status-label {
+      font-size: 13px; color: var(--text2); font-family: var(--mono);
+      text-align: center; min-height: 18px;
+    }
+
+    /* Visualizer */
+    .viz {
+      display: flex; align-items: center; gap: 3px; height: 36px;
+    }
+    .bar {
+      width: 5px; border-radius: 3px;
+      background: var(--border2); height: 5px;
+      transition: background 0.1s;
+    }
+
+    /* Mic button */
+    .btn-mic {
+      width: 68px; height: 68px; border-radius: 50%;
+      border: none; cursor: pointer;
+      background: var(--accent); color: white; font-size: 26px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-mic:hover:not(:disabled) { transform: scale(1.06); }
+    .btn-mic:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn-mic.recording { background: #ef4444; }
+    .btn-mic svg { width: 26px; height: 26px; }
+
+    .hint { font-size: 11px; color: var(--text3); font-family: var(--mono); text-align: center; }
+
+    /* ── Transcript ── */
+    .tx-panel {
+      border-top: 0.5px solid var(--border);
+      padding: 12px 18px;
+      max-height: 210px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
+      background: var(--bg);
+    }
+    .tx-panel::-webkit-scrollbar { width: 4px; }
+    .tx-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .tx-empty { font-size: 12px; color: var(--text3); font-family: var(--mono); text-align: center; padding: 8px; }
+    .tx-msg { display: flex; gap: 8px; align-items: flex-start; }
+    .tx-who {
+      font-size: 10px; font-family: var(--mono); font-weight: 600;
+      padding: 2px 8px; border-radius: 4px; white-space: nowrap; margin-top: 2px; flex-shrink: 0;
+    }
+    .tx-who.user { background: #e8f0fe; color: #1a56db; }
+    .tx-who.gem  { background: #f0fdf4; color: #166534; }
+    @media (prefers-color-scheme: dark) {
+      .tx-who.user { background: #1e3a5f; color: #93c5fd; }
+      .tx-who.gem  { background: #052e16; color: #86efac; }
+    }
+    .tx-text { font-size: 13px; color: var(--text1); line-height: 1.55; }
+
+    /* ── Footer ── */
+    .foot {
+      padding: 8px 18px; text-align: center;
+      font-size: 10px; color: var(--text3); font-family: var(--mono);
+      border-top: 0.5px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo">P</div>
+    <div>
+      <div class="hdr-title">Agente de Pedidos — Voz</div>
+      <div class="hdr-sub">gemini-3.1-flash-live-preview · 68k pedidos</div>
+    </div>
+    <div class="status-dot" id="dot"></div>
+  </div>
+
+  <!-- Config -->
+  <div class="cfg">
+    <label for="apiKey">API KEY</label>
+    <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off" />
+    <select id="voiceSel" title="Voz de Gemini">
+      <option value="Aoede">Aoede</option>
+      <option value="Charon">Charon</option>
+      <option value="Fenrir">Fenrir</option>
+      <option value="Kore">Kore</option>
+      <option value="Puck" selected>Puck</option>
+    </select>
+    <button class="btn-conn" id="btnConn" onclick="toggleConn()">Conectar</button>
+  </div>
+
+  <!-- Alert -->
+  <div class="alert" id="alert"></div>
+
+  <!-- Stage -->
+  <div class="stage">
+
+    <div class="orb-wrap">
+      <div class="orb" id="orb">
+        <!-- Mic icon SVG -->
+        <svg id="orbSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" y1="17" x2="12" y2="22"/>
+          <line x1="8"  y1="22" x2="16" y2="22"/>
+        </svg>
+      </div>
+      <div class="orb-ring" id="orbRing"></div>
+    </div>
+
+    <div class="status-label" id="statusLabel">Agente listo · 68,683 pedidos cargados</div>
+
+    <!-- Visualizer bars -->
+    <div class="viz" id="viz">
+      <div class="bar" id="b0"></div><div class="bar" id="b1"></div>
+      <div class="bar" id="b2"></div><div class="bar" id="b3"></div>
+      <div class="bar" id="b4"></div><div class="bar" id="b5"></div>
+      <div class="bar" id="b6"></div><div class="bar" id="b7"></div>
+      <div class="bar" id="b8"></div><div class="bar" id="b9"></div>
+      <div class="bar" id="b10"></div><div class="bar" id="b11"></div>
+    </div>
+
+    <!-- Mic button -->
+    <button class="btn-mic" id="btnMic" disabled onclick="toggleMic()" aria-label="Hablar / Detener">
+      <svg id="micSvg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="2" width="6" height="11" rx="3"/>
+        <path d="M5 10a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="17" x2="12" y2="22"/>
+        <line x1="8"  y1="22" x2="16" y2="22"/>
+      </svg>
+    </button>
+
+    <div class="hint" id="hint">Conecta para empezar a hablar</div>
+  </div>
+
+  <!-- Transcript -->
+  <div class="tx-panel" id="txPanel">
+    <div class="tx-empty" id="txEmpty">La transcripción aparecerá aquí</div>
+  </div>
+
+  <div class="foot">Datos: 68,683 pedidos · 1M+ líneas · 3,434 sustituciones · México / Ecuador / Perú / Argentina · Tu API key vive solo en tu navegador</div>
+</div>
+
+<script type="module">
+  /* ── SVGs inline para los estados del orb ── */
+  const SVG_MIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="2" width="6" height="11" rx="3"/>
+    <path d="M5 10a7 7 0 0 0 14 0"/>
+    <line x1="12" y1="17" x2="12" y2="22"/>
+    <line x1="8"  y1="22" x2="16" y2="22"/>
+  </svg>`;
+  const SVG_VOL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+  </svg>`;
+  const SVG_MIC_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="1" y1="1" x2="23" y2="23"/>
+    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8"  y1="23" x2="16" y2="23"/>
+  </svg>`;
+
+  /* ── Estado global ── */
+  let session = null, connected = false, recording = false;
+  let mediaStream = null, audioCtx = null, processor = null, analyser = null;
+  let audioQueue = [], isPlaying = false;
+  let playbackCtx = null;
+  let animFrame = null;
+  const SAMPLE_RATE_OUT = 24000;
+  const NBARS = 12;
+
+  /* ── Helpers UI ── */
+  const $ = id => document.getElementById(id);
+
+  function setDot(cls) {
+    $('dot').className = 'status-dot' + (cls ? ' ' + cls : '');
+  }
+  function setLabel(t) { $('statusLabel').textContent = t; }
+  function setHint(t)  { $('hint').textContent = t; }
+
+  function flash(msg, type) {
+    const el = $('alert');
+    el.textContent = msg;
+    el.className = 'alert show ' + type;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = 'alert', 4500);
+  }
+
+  function addTx(who, text) {
+    const panel = $('txPanel');
+    const empty = $('txEmpty');
+    if (empty) empty.remove();
+    const d = document.createElement('div');
+    d.className = 'tx-msg';
+    const label = who === 'user' ? 'Tú' : 'Gemini';
+    d.innerHTML = `<span class="tx-who ${who}">${label}</span><span class="tx-text">${esc(text)}</span>`;
+    panel.appendChild(d);
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+
+  function setOrbState(state) {
+    const orb = $('orb');
+    orb.className = 'orb' + (state ? ' ' + state : '');
+    orb.innerHTML = state === 'playing' ? SVG_VOL : SVG_MIC;
+  }
+
+  function resetBars() {
+    for (let i = 0; i < NBARS; i++) {
+      const b = $('b' + i);
+      if (b) { b.style.height = '5px'; b.style.background = 'var(--border2)'; }
+    }
+  }
+
+  function animateBars(mode) {
+    cancelAnimationFrame(animFrame);
+    const bars = Array.from({length: NBARS}, (_, i) => $('b' + i));
+    const maxH = 30, minH = 5;
+
+    function frame() {
+      if (mode === 'mic' && analyser) {
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        bars.forEach((b, i) => {
+          const v = data[Math.floor(i * data.length / NBARS)] / 255;
+          b.style.height = Math.round(minH + v * (maxH - minH)) + 'px';
+          b.style.background = '#ef4444';
+        });
+      } else if (mode === 'play') {
+        const t = Date.now() / 220;
+        bars.forEach((b, i) => {
+          const v = Math.abs(Math.sin(t + i * 0.55));
+          b.style.height = Math.round(minH + v * (maxH - minH)) + 'px';
+          b.style.background = '#22c55e';
+        });
+      }
+      const keep = (mode === 'mic' && recording) || (mode === 'play' && isPlaying);
+      if (keep) animFrame = requestAnimationFrame(frame);
+      else resetBars();
+    }
+    animFrame = requestAnimationFrame(frame);
+  }
+
+  /* ── Conectar / desconectar ── */
+  window.toggleConn = async function() {
+    if (connected) { disconnect(); return; }
+
+    const key   = $('apiKey').value.trim();
+    const voice = $('voiceSel').value;
+    if (!key) { flash('Ingresa tu API key de Google AI Studio', 'err'); return; }
+
+    setDot('blink'); setLabel('Conectando...');
+    $('btnConn').disabled = true;
+
+    try {
+      const { GoogleGenAI, Modality } = await import('https://esm.sh/@google/genai@latest');
+      const ai = new GoogleGenAI({ apiKey: key });
+
+      session = await ai.live.connect({
+        model: 'gemini-3.1-flash-live-preview',
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } }
+          },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+          systemInstruction: `Eres un asistente de voz especializado en análisis de pedidos y distribución de bebidas. Responde de forma natural y concisa en el mismo idioma en que te hablen.
+
+Tienes acceso a los siguientes datos de operaciones (actualizados):
+
+=== RESUMEN DE PEDIDOS ===
+- Total de pedidos: 68,683
+- Estatus: Entregado: 60,423 | Registrado: 8,145 | Rechazado: 106 | Cancelado: 9
+- Tasa de entrega exitosa: 87.9%
+- Países de operación: México (46,752), Ecuador (13,936), Perú (5,418), Argentina (2,577)
+- Unidades de negocio: Bebidas (63,918), Lácteos (4,551), Helados (107), Multicategorías (105), Papitas (2)
+- Valor promedio por pedido: $2,078.64 MXN
+- Valor máximo registrado: $500,250.00 MXN
+
+=== LÍNEAS DE DETALLE DE PEDIDOS ===
+- Total de líneas: 1,016,686
+- Entregadas: 482,696 | Registradas: 533,378 | Rechazadas: 601 | Canceladas: 11
+
+=== TOP SUSTITUCIONES DE PRODUCTO ===
+Cuando un SKU no está disponible, los reemplazos más frecuentes son:
+- Coca-Cola → Coca-Cola Sin Azúcar Pet 1.5L x8 (124 veces)
+- Coca-Cola → Coca-Cola Light Sin Cafeína Pet 600ml x24 (124 veces)
+- Coca-Cola → Coca-Cola Pet 2L Retornable x8 (88 veces)
+- Coca-Cola → Coca-Cola Light Pet 1.5L x6 (85 veces)
+- Coca-Cola → Coca-Cola Vidrio 355ml x24 (84 veces)
+- Coca-Cola → Coca-Cola Pet 400ml x12 (78 veces)
+- Coca-Cola → Coca-Cola Vidrio 237ml x12 (72 veces)
+- Topo Chico Agua Mineral → Topo Chico Vidrio 355ml x12 (59 veces)
+- Fuze Tea Durazno → Fuze Tea Limón Pet 600ml x6 (53 veces)
+- Coca-Cola → Coca-Cola Zero Pet 2L x8 (53 veces)
+- Powerade Moras → Powerade Uva Pet 1L x6 (38 veces)
+- Del Valle Durazno → Del Valle Limón Pepino Pet 600ml x6 (35 veces)
+- Total de sustituciones registradas: 3,434
+
+Cuando el usuario pregunte sobre pedidos, entregas, rechazos, sustituciones de productos, o estadísticas operativas, usa estos datos para responder con precisión. Si te preguntan por un producto o categoría específica, busca en los datos disponibles y da la información más relevante. Sé conversacional y directo.`,
+        },
+        callbacks: {
+          onopen: () => {
+            connected = true;
+            setDot('on');
+            $('btnConn').textContent = 'Desconectar';
+            $('btnConn').disabled = false;
+            $('btnConn').classList.add('live');
+            $('apiKey').disabled = true;
+            $('voiceSel').disabled = true;
+            $('btnMic').disabled = false;
+            setLabel('Conectado — presiona el micrófono para hablar');
+            setHint('Presiona para hablar, vuelve a presionar para terminar');
+            flash('Conectado a Gemini Live', 'ok');
+            playbackCtx = new AudioContext({ sampleRate: SAMPLE_RATE_OUT });
+          },
+          onmessage: handleMsg,
+          onerror: e => {
+            flash('Error: ' + (e?.message || 'conexión fallida'), 'err');
+            resetAll();
+          },
+          onclose: e => {
+            if (connected) flash('Sesión cerrada' + (e?.reason ? ': ' + e.reason : ''), 'err');
+            resetAll();
+          }
+        }
+      });
+
+    } catch(e) {
+      flash('No se pudo conectar: ' + (e?.message || String(e)), 'err');
+      setDot('err');
+      setLabel('Error al conectar');
+      $('btnConn').disabled = false;
+    }
+  };
+
+  /* ── Manejar mensajes de la sesión ── */
+  function handleMsg(response) {
+    const c = response?.serverContent;
+
+    if (c?.modelTurn?.parts) {
+      for (const p of c.modelTurn.parts) {
+        if (p.inlineData?.mimeType?.startsWith('audio/')) {
+          const bytes = Uint8Array.from(atob(p.inlineData.data), ch => ch.charCodeAt(0));
+          audioQueue.push(bytes);
+          if (!isPlaying) playNext();
+        }
+      }
+    }
+
+    if (c?.inputTranscription?.text)  addTx('user', c.inputTranscription.text);
+    if (c?.outputTranscription?.text) addTx('gem',  c.outputTranscription.text);
+
+    if (c?.turnComplete) {
+      setOrbState('');
+      if (!recording) setLabel('Conectado — tu turno');
+    }
+  }
+
+  /* ── Reproducción de audio PCM ── */
+  function playNext() {
+    if (!audioQueue.length || !playbackCtx) {
+      isPlaying = false;
+      setOrbState(recording ? 'recording' : '');
+      cancelAnimationFrame(animFrame);
+      resetBars();
+      return;
+    }
+    isPlaying = true;
+    setOrbState('playing');
+    setLabel('Gemini hablando...');
+    animateBars('play');
+
+    const chunk = audioQueue.shift();
+    const numSamples = chunk.length / 2;
+    const buf = playbackCtx.createBuffer(1, numSamples, SAMPLE_RATE_OUT);
+    const ch  = buf.getChannelData(0);
+    const dv  = new DataView(chunk.buffer);
+    for (let i = 0; i < numSamples; i++) {
+      ch[i] = dv.getInt16(i * 2, true) / 32768;
+    }
+    const src = playbackCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(playbackCtx.destination);
+    src.onended = playNext;
+    src.start();
+  }
+
+  /* ── Micrófono ── */
+  window.toggleMic = async function() {
+    if (!connected) return;
+    if (recording) { stopMic(); return; }
+    await startMic();
+  };
+
+  async function startMic() {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+      });
+
+      audioCtx  = new AudioContext({ sampleRate: 16000 });
+      analyser  = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+      const src = audioCtx.createMediaStreamSource(mediaStream);
+      src.connect(analyser);
+      analyser.connect(processor);
+      processor.connect(audioCtx.destination);
+
+      processor.onaudioprocess = e => {
+        if (!recording || !session) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const pcm16 = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+          pcm16[i] = Math.max(-32768, Math.min(32767, input[i] * 32768));
+        }
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
+        session.sendRealtimeInput({ audio: { data: b64, mimeType: 'audio/pcm;rate=16000' } });
+      };
+
+      recording = true;
+      const btn = $('btnMic');
+      btn.classList.add('recording');
+      btn.innerHTML = SVG_MIC_OFF;
+      setOrbState('recording');
+      setLabel('Escuchando...');
+      setHint('Presiona de nuevo para terminar tu turno');
+      animateBars('mic');
+
+    } catch(e) {
+      flash('Micrófono no disponible: ' + e.message, 'err');
+    }
+  }
+
+  function stopMic() {
+    recording = false;
+    if (processor) { processor.disconnect(); processor.onaudioprocess = null; processor = null; }
+    if (analyser)  { analyser.disconnect(); analyser = null; }
+    if (audioCtx)  { audioCtx.close(); audioCtx = null; }
+    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+
+    const btn = $('btnMic');
+    btn.classList.remove('recording');
+    btn.innerHTML = SVG_MIC;
+    setOrbState('');
+    setLabel('Procesando...');
+    setHint('Presiona para hablar de nuevo');
+    cancelAnimationFrame(animFrame);
+    resetBars();
+  }
+
+  /* ── Desconectar todo ── */
+  function disconnect() {
+    stopMic();
+    audioQueue = []; isPlaying = false;
+    if (session)      { try { session.close(); } catch(e){} session = null; }
+    if (playbackCtx)  { playbackCtx.close(); playbackCtx = null; }
+    resetAll();
+  }
+
+  function resetAll() {
+    connected = false; recording = false;
+    setDot('');
+    setOrbState('');
+    setLabel('Ingresa tu API key y conecta');
+    setHint('Conecta para empezar a hablar');
+    $('btnConn').textContent = 'Conectar';
+    $('btnConn').disabled = false;
+    $('btnConn').classList.remove('live');
+    $('apiKey').disabled = false;
+    $('voiceSel').disabled = false;
+    const btn = $('btnMic');
+    btn.disabled = true;
+    btn.classList.remove('recording');
+    btn.innerHTML = SVG_MIC;
+    cancelAnimationFrame(animFrame);
+    resetBars();
+  }
+</script>
+</body>
+</html>
