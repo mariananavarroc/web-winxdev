@@ -1,0 +1,6 @@
+insert into public.product_substitutions (id, id_businessunit, external_line_id, order_detail_id, sku_solicitado, sku_solicitado_hash, nombre_sku_solicitado, sku_solicitado_cambio, sku_solicitado_cambio_hash, nombre_sku_solicitado_cambio) values
+('0e4a6cf6-ced7-5513-ae7c-e2b395aeed2b'::uuid, '8', '1852232', '1486177d-56df-5cf6-ad7f-7b48fb8c6825'::uuid, '113', '2.84233e+18', 'Ina Cake Relleno de Vainilla 100 Gr.', '107', '2.64714e+18', 'Ina Cake Clásico Paquete x2 x40 Gr.'),
+('63efad61-3c64-517f-a0d4-adf7014dfd17'::uuid, '8', '20947620', '2b322cfd-7d2d-58bb-977b-25486a0acddc'::uuid, '971', '3.61323e+18', 'Yogurt Chiqui Mix Frutilla con Hojuelas 92 Gr.', '11242', '8.10546e+18', 'Yogurt Toni Yogurt Vainilla 1.7 L.'),
+('50f81546-c29b-5ca2-aa46-64ba6485d9f9'::uuid, '1', '10367078', '6d3a8ffe-b52c-5764-be38-526eb007fbf8'::uuid, '254', '8.51269e+18', 'Coca - Cola', '1405', '5.53622e+18', 'Coca - Cola, Botella Pet 400 ml, 12 Piezas'),
+('0bbfbc6f-796f-5ec1-9c55-1139f59ddacb'::uuid, '1', '2349870', '960408eb-50de-5071-b500-45f430fa3ce6'::uuid, '1152', '4.00989e+18', 'Topo Chico Agua Mineral', '4153', '9.09655e+18', 'Topo Chico Agua Mineral, Botella Vidrio 355 ml, 12 Piezas')
+on conflict (id) do nothing;

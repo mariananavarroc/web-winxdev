@@ -1,0 +1,12 @@
+insert into public.orders (id, external_order_id, customer_id, pais, id_businessunit, business_unit, cedis, fecha_pedido, fecha_entrega, status_final, valor_pedido, subtotal, total) values
+('3789d57e-277d-53e1-82cb-767dd25ebb44'::uuid, '9.0616E+18', 'aacc04c5-2a23-5db2-99a6-6ef604ef7c9d'::uuid, 'México', '1', 'Bebidas', '3810', '33:50.7', '00:00.0', 'Entregado', 10, 3077.56, 3570.0),
+('dab5fb5d-d38e-5236-9499-6e1d75a60461'::uuid, '9.13406E+18', 'f63e356a-a28b-5113-b817-715d44328230'::uuid, 'México', '1', 'Bebidas', '3947', '46:53.0', '00:00.0', 'Entregado', 10, 1550.23, 1797.07),
+('dd6369ea-e840-5023-9413-6fafa4982677'::uuid, '9.20459E+18', '6b5843a0-f28d-5903-a351-7f4a4c5f66a5'::uuid, 'México', '1', 'Bebidas', '3410', '36:36.5', '00:00.0', 'Entregado', 8, 1771.31, 1936.54),
+('e57fafa5-b218-5df6-b7df-395cb99818fd'::uuid, '9.16294E+18', '14a58a53-2ab4-5baf-bac0-cdcf5c7e8305'::uuid, 'México', '1', 'Bebidas', '3507', '38:52.8', '00:00.0', 'Entregado', 7, 1274.0, 1274.0),
+('463ba15f-fd90-5f54-9a91-21ecb68fa5dc'::uuid, '8.93865E+18', '7168459e-daeb-5e71-8c48-f5d7fa4c12d0'::uuid, 'México', '1', 'Bebidas', '3202', '03:07.8', '00:00.0', 'Entregado', 8, 1662.48, 1928.47),
+('36125a6a-4647-5c41-bb13-47eaaa265b40'::uuid, '9.00756E+18', '45bfe700-aec1-5508-bb3f-d50c08bd72b9'::uuid, 'México', '1', 'Bebidas', '3206', '49:15.3', '00:00.0', 'Entregado', 5, 1369.82, 1468.0),
+('68d97d31-3c57-5b8f-a14c-f7833952476d'::uuid, '9.06908E+18', '2b647157-6043-5a7c-a6f9-125cf8859625'::uuid, 'México', '1', 'Bebidas', '3201', '12:50.7', '00:00.0', 'Entregado', 8, 1646.97, 1910.49),
+('590ffa38-6170-5426-a321-af6b27667ee9'::uuid, '8.93315E+18', '2e64766d-d453-552d-92a7-2a8f4046f1b7'::uuid, 'México', '1', 'Bebidas', '3103', '06:19.4', '00:00.0', 'Entregado', 4, 1244.45, 1344.0),
+('8e19f292-f1e8-5596-af4a-43ee3a5b2a88'::uuid, '9.18084E+18', 'cb9b79d8-7d5b-5ea2-8672-e6c0c8a43835'::uuid, 'México', '1', 'Bebidas', '3401', '02:08.3', '00:00.0', 'Entregado', 6, 1681.03, 1949.99),
+('6a445130-11b2-561d-9e7c-1d6a0b06ed48'::uuid, '9.01121E+18', '6b5843a0-f28d-5903-a351-7f4a4c5f66a5'::uuid, 'México', '1', 'Bebidas', '3410', '04:47.2', '00:00.0', 'Entregado', 9, 1811.02, 1961.5)
+on conflict (id) do nothing;

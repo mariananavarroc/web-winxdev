@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Search, Heart, Bell, Home, Package, Star, ShoppingBag, Menu, ChevronRight, MapPin, TrendingUp, X } from "lucide-react";
@@ -29,6 +29,9 @@ const CATEGORIES = [
   { id: 4, label: "Agua", emoji: "💧" },
 ];
 
+// Clave compartida para persistir el ID del cliente entre páginas (Inicio <-> Plan)
+export const CLIENT_ID_STORAGE_KEY = "tuali_client_id";
+
 const NAV_ITEMS = [
   { label: "Inicio", icon: Home },
   { label: "Productos", icon: Package },
@@ -55,11 +58,35 @@ function SectionHeader({ title, badge }: { title: string; badge?: string }) {
   );
 }
 
-function AsesorCard() {
+interface ResumenCrecimiento {
+  sin_datos: boolean;
+  meta?: { monto_actual: number; monto_objetivo: number; porcentaje: number };
+  recomendaciones?: { producto: string; razon: string; impacto_estimado: number }[];
+}
+
+function AsesorCard({ idCliente }: { idCliente: string }) {
   const router = useRouter();
-  const meta = 2400;
-  const objetivo = 4000;
-  const pct = Math.round((meta / objetivo) * 100);
+  const [resumen, setResumen] = useState<ResumenCrecimiento | null>(null);
+
+  useEffect(() => {
+    if (!idCliente) {
+      setResumen(null);
+      return;
+    }
+    let cancelado = false;
+    fetch(`http://127.0.0.1:8000/tuali/resumen-crecimiento/${encodeURIComponent(idCliente)}`)
+      .then((r) => r.json())
+      .then((data: ResumenCrecimiento) => !cancelado && setResumen(data))
+      .catch(() => !cancelado && setResumen(null));
+    return () => {
+      cancelado = true;
+    };
+  }, [idCliente]);
+
+  const meta = resumen?.meta;
+  const pct = meta?.porcentaje ?? 0;
+  const topRecomendacion = resumen?.recomendaciones?.[0];
+  const fmt = (n: number) => `$${n.toLocaleString("es-MX")}`;
 
   return (
     <div className="mx-4 mb-5 rounded-2xl bg-green-50 border border-green-100 overflow-hidden" style={{ boxShadow: "0 2px 12px 0 rgba(0,0,0,0.06)", fontFamily: "'Lora', Georgia, serif" }}>
@@ -73,32 +100,52 @@ function AsesorCard() {
             Tu asesor de crecimiento
           </span>
         </div>
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500" style={{ fontFamily: "'Lora', Georgia, serif" }}>Meta de junio</span>
-            <span className="text-sm" style={{ fontFamily: "'Lora', Georgia, serif" }}>
-              <span className="font-bold text-gray-900">$2,400</span>
-              <span style={{ color: "#ca8a04", fontWeight: 700 }}> de $4,000</span>
-            </span>
-          </div>
-          <div className="w-full h-3 bg-green-100 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-xs text-green-600 font-medium mt-1.5" style={{ fontFamily: "'Lora', Georgia, serif" }}>{pct}% completado</p>
-        </div>
-        <div className="border-t border-green-100 mb-3" />
-        <p className="text-sm text-gray-700 mb-3 leading-relaxed" style={{ fontFamily: "'Lora', Georgia, serif" }}>
-          Surte <span className="font-semibold text-gray-900">Coca-Cola 600 ml</span> hoy — tus viernes venden{" "}
-          <span className="font-semibold text-gray-900">40% más</span> cuando la tienes.
-        </p>
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold whitespace-nowrap border border-green-200" style={{ fontFamily: "'Lora', Georgia, serif" }}>
-            +$320 est.
-          </span>
-          <button className="flex-1 bg-orange-500 text-white text-sm font-bold rounded-full py-2 px-4 hover:bg-orange-600 active:scale-95 transition-all" style={{ fontFamily: "'Lora', Georgia, serif" }}>
-            Agregar al pedido
-          </button>
-        </div>
+
+        {!idCliente ? (
+          <p className="text-sm text-gray-600 mb-1 leading-relaxed" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            Ingresa tu ID de cliente (botón naranja arriba) para ver tu meta y recomendaciones basadas en tus pedidos reales.
+          </p>
+        ) : !meta ? (
+          <p className="text-sm text-gray-600 mb-1 leading-relaxed" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            Aún no encontramos pedidos para el ID <span className="font-semibold text-gray-900">{idCliente}</span> en la base de datos.
+          </p>
+        ) : (
+          <>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500" style={{ fontFamily: "'Lora', Georgia, serif" }}>Meta de crecimiento</span>
+                <span className="text-sm" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+                  <span className="font-bold text-gray-900">{fmt(meta.monto_actual)}</span>
+                  <span style={{ color: "#ca8a04", fontWeight: 700 }}> de {fmt(meta.monto_objetivo)}</span>
+                </span>
+              </div>
+              <div className="w-full h-3 bg-green-100 rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="text-xs text-green-600 font-medium mt-1.5" style={{ fontFamily: "'Lora', Georgia, serif" }}>{pct}% completado</p>
+            </div>
+            <div className="border-t border-green-100 mb-3" />
+            <p className="text-sm text-gray-700 mb-3 leading-relaxed" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+              {topRecomendacion ? (
+                <>
+                  Surte <span className="font-semibold text-gray-900">{topRecomendacion.producto}</span> seguido —{" "}
+                  {topRecomendacion.razon.toLowerCase()}.
+                </>
+              ) : (
+                "Sigue registrando pedidos para que detectemos tus productos estrella."
+              )}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold whitespace-nowrap border border-green-200" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+                {topRecomendacion ? `+$${topRecomendacion.impacto_estimado} est.` : "—"}
+              </span>
+              <button className="flex-1 bg-orange-500 text-white text-sm font-bold rounded-full py-2 px-4 hover:bg-orange-600 active:scale-95 transition-all" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+                Agregar al pedido
+              </button>
+            </div>
+          </>
+        )}
+
         <button
           onClick={() => router.push("/plan")}
           className="w-full flex items-center justify-center gap-1.5 mt-3 rounded-2xl py-2.5 px-4 bg-white active:scale-95 transition-all group"
@@ -338,6 +385,17 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [savedClientId, setSavedClientId] = useState("");
 
+  // Recuperamos el ID guardado (p.ej. al volver desde /plan) y lo persistimos
+  // en localStorage para compartirlo entre páginas sin un backend de sesión.
+  useEffect(() => {
+    const guardado = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+    if (guardado) setSavedClientId(guardado);
+  }, []);
+
+  useEffect(() => {
+    if (savedClientId) window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, savedClientId);
+  }, [savedClientId]);
+
   return (
     <div className="relative w-full h-full bg-gray-50 flex flex-col">
       <div className="flex items-center justify-between px-6 pt-3 pb-1 bg-white shrink-0">
@@ -397,7 +455,7 @@ export default function HomePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-20 pt-1">
-        <AsesorCard />
+        <AsesorCard idCliente={savedClientId} />
 
         <div className="px-4 mb-5">
           <div className="grid grid-cols-4 gap-2">
