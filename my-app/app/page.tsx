@@ -1,11 +1,11 @@
-"use client"; // 1. Clave para interactividad en Next.js (useState, onClick, Framer Motion)
+"use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // 2. Actualizado al estándar
-import { useRouter } from "next/navigation"; // 3. Cambiado desde 'react-router'
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Search, Heart, Bell, Home, Package, Star, ShoppingBag, Menu, ChevronRight, MapPin, TrendingUp, X } from "lucide-react";
 
-// 4. Rutas ajustadas asumiendo que moviste las carpetas a la raíz de tu proyecto Next.js
+// Importaciones de tus componentes (asegúrate de que las rutas coincidan con tus carpetas)
 import { ImageWithFallback } from "../components/figma/ImageWithFallback"; 
 import viejitoImg from "../imports/IMG_9323.jpeg"; 
 
@@ -56,7 +56,7 @@ function SectionHeader({ title, badge }: { title: string; badge?: string }) {
 }
 
 function AsesorCard() {
-  const router = useRouter(); // Cambiado a Next.js
+  const router = useRouter();
   const meta = 2400;
   const objetivo = 4000;
   const pct = Math.round((meta / objetivo) * 100);
@@ -100,7 +100,7 @@ function AsesorCard() {
           </button>
         </div>
         <button
-          onClick={() => router.push("/plan")} // Cambiado a Next.js
+          onClick={() => router.push("/plan")}
           className="w-full flex items-center justify-center gap-1.5 mt-3 rounded-2xl py-2.5 px-4 bg-white active:scale-95 transition-all group"
           style={{ fontFamily: "'Lora', Georgia, serif", boxShadow: "0 0 0 2px #86efac, 0 3px 10px rgba(34,197,94,0.2)" }}
         >
@@ -112,16 +112,55 @@ function AsesorCard() {
   );
 }
 
-function ChatHead() {
-  const router = useRouter(); // Cambiado a Next.js
+// 🤖 ESTE ES EL CHAT CONECTADO A FASTAPI
+function ChatHead({ idCliente }: { idCliente: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [historial, setHistorial] = useState([
+    { rol: "asesor", texto: "¡Hola! 👋 Soy tu Growth Agent de Tuali. ¿En qué te ayudo con tu tiendita hoy?" }
+  ]);
+
+  const enviarMensaje = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mensaje.trim()) return;
+
+    const nuevoMensaje = { rol: "usuario", texto: mensaje };
+    setHistorial((prev) => [...prev, nuevoMensaje]);
+    setMensaje("");
+    setCargando(true);
+
+    try {
+      // Conexión a tu servidor local de Python
+      const respuesta = await fetch("http://127.0.0.1:8000/tuali/growth-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          id_cliente: idCliente || "Anónimo",
+          meta_negocio: "Aumentar ventas",
+          pregunta_o_situacion: nuevoMensaje.texto,
+          contexto_externo: "Clima cálido" 
+        }), 
+      });
+
+      const data = await respuesta.json();
+      
+      setHistorial((prev) => [...prev, { rol: "asesor", texto: data.recomendacion_tuali }]);
+    } catch (error) {
+      console.error(error);
+      setHistorial((prev) => [...prev, { rol: "asesor", texto: "⚠️ Disculpa, no me pude conectar con el servidor." }]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     <>
       <AnimatePresence>
         {open && (
           <motion.div
-            className="absolute inset-0 z-10"
+            className="fixed inset-0 z-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -133,7 +172,7 @@ function ChatHead() {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="absolute bottom-[108px] right-14 z-20 w-56"
+            className="absolute bottom-[108px] right-14 z-20 w-72"
             initial={{ opacity: 0, scale: 0.85, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.85, y: 10 }}
@@ -150,42 +189,53 @@ function ChatHead() {
 
               <div className="flex items-center gap-2 mb-2.5 pr-5">
                 <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-green-200 shrink-0">
-                  {/* 5. Agregado .src para imágenes locales en Next.js */}
-                  <img src={viejitoImg.src} alt="Asesor" className="w-full h-full object-cover" /> 
+                  <img src={viejitoImg.src} alt="Asesor" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-900 leading-none">Asesor</p>
-                  <p className="text-[10px] text-green-600 font-medium mt-0.5">● En línea</p>
+                  <p className="text-xs font-bold text-gray-900 leading-none">Tuali Agent</p>
+                  <p className="text-[10px] text-green-600 font-medium mt-0.5">● Inteligencia Activa</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="bg-gray-50 rounded-xl rounded-tl-sm px-3 py-2">
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    ¡Hola! 👋 Ya llevas <span className="font-bold text-green-600">60%</span> de tu meta de junio.
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-xl rounded-tl-sm px-3 py-2">
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    Surte <span className="font-semibold">Coca-Cola 600 ml</span> hoy y cierra la semana fuerte 💪
-                  </p>
-                </div>
+              <div className="space-y-2 max-h-56 overflow-y-auto mb-3 pr-1">
+                {historial.map((msg, i) => (
+                  <div 
+                    key={i} 
+                    className={`px-3 py-2 text-xs leading-relaxed ${
+                      msg.rol === "asesor" 
+                        ? "bg-gray-50 rounded-xl rounded-tl-sm text-gray-700 whitespace-pre-line" 
+                        : "bg-orange-500 rounded-xl rounded-tr-sm text-white ml-6"
+                    }`}
+                  >
+                    {msg.texto}
+                  </div>
+                ))}
+                {cargando && (
+                  <div className="bg-gray-50 rounded-xl rounded-tl-sm px-3 py-2 text-xs text-gray-400">
+                    Analizando datos... 📊
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/plan"); // Cambiado a Next.js
-                }}
-                className="mt-3 w-full bg-orange-500 text-white text-xs font-bold rounded-xl py-2 hover:bg-orange-600 transition-colors"
-              >
-                Ver mi plan completo →
-              </button>
+              <form onSubmit={enviarMensaje} className="flex gap-2">
+                <input
+                  type="text"
+                  value={mensaje}
+                  onChange={(e) => setMensaje(e.target.value)}
+                  placeholder="Pregúntame algo..."
+                  className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                  disabled={cargando}
+                />
+                <button 
+                  type="submit" 
+                  disabled={cargando || !mensaje.trim()}
+                  className="bg-orange-500 text-white rounded-lg px-2.5 py-2 disabled:bg-gray-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </form>
 
-              <div
-                className="absolute -bottom-2 right-3 w-4 h-4 bg-white border-r border-b border-gray-100 rotate-45"
-                style={{ boxShadow: "2px 2px 4px rgba(0,0,0,0.06)" }}
-              />
+              <div className="absolute -bottom-2 right-3 w-4 h-4 bg-white border-r border-b border-gray-100 rotate-45" />
             </div>
           </motion.div>
         )}
@@ -199,17 +249,20 @@ function ChatHead() {
         animate={open ? { scale: 1.08 } : { scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
-        {/* 5. Agregado .src para imágenes locales en Next.js */}
         <img src={viejitoImg.src} alt="Asesor de crecimiento" className="w-full h-full object-cover" />
       </motion.button>
     </>
   );
 }
 
-function ClientIdButton() {
+interface ClientIdButtonProps {
+  saved: string;
+  setSaved: (val: string) => void;
+}
+
+function ClientIdButton({ saved, setSaved }: ClientIdButtonProps) {
   const [open, setOpen] = useState(false);
   const [clientId, setClientId] = useState("");
-  const [saved, setSaved] = useState("");
 
   function handleListo() {
     if (clientId.trim()) {
@@ -283,10 +336,10 @@ function ClientIdButton() {
 export default function HomePage() {
   const [activeNav, setActiveNav] = useState(0);
   const [search, setSearch] = useState("");
+  const [savedClientId, setSavedClientId] = useState("");
 
   return (
     <div className="relative w-full h-full bg-gray-50 flex flex-col">
-      {/* Barra de estado */}
       <div className="flex items-center justify-between px-6 pt-3 pb-1 bg-white shrink-0">
         <span className="text-xs font-semibold text-gray-900">2:04</span>
         <div className="w-4 h-2.5 border border-gray-800 rounded-sm relative">
@@ -295,7 +348,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Encabezado */}
       <div className="bg-white px-4 pt-2 pb-4 shrink-0 border-b border-gray-100">
         <div className="flex items-start justify-between mb-3">
           <div>
@@ -327,11 +379,10 @@ export default function HomePage() {
             <span className="text-xs font-bold text-gray-900">#2342484</span>
             <ChevronRight size={12} className="text-orange-400" />
           </div>
-          <ClientIdButton />
+          <ClientIdButton saved={savedClientId} setSaved={setSavedClientId} />
         </div>
       </div>
 
-      {/* Buscador */}
       <div className="bg-white px-4 pt-3 pb-3 shrink-0">
         <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5">
           <Search size={15} className="text-gray-400" />
@@ -345,7 +396,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Contenido */}
       <div className="flex-1 overflow-y-auto pb-20 pt-1">
         <AsesorCard />
 
@@ -409,7 +459,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Navegación inferior */}
       <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around px-2 pt-2 pb-5">
         {NAV_ITEMS.map((item, i) => {
           const Icon = item.icon;
@@ -429,8 +478,8 @@ export default function HomePage() {
         })}
       </div>
 
-      {/* Chat Head flotante */}
-      <ChatHead />
+      {/* Pasamos el ID de cliente guardado al Chat Head */}
+      <ChatHead idCliente={savedClientId} />
     </div>
   );
 }
